@@ -7,7 +7,9 @@ This is the development repository for Ace of Spades - Open Source. All contribu
 For those willing to contribute I will be including a default workspace so that it is possible to compile and make changes to the 'current' version of all the files. Also you are not to remove any credits from the top of files or that will be outputted to the window of the application.
 
 everything I use to compile is inside default workspace including:
+
 microsoft visual c/c++ toolkit 2003
+
 Direct X SDK
 
 after that all you need to do is change setup.bat to match you paths and you can compile by running makestuf.bat or the command nmake [file]
