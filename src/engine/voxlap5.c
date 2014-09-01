@@ -12,7 +12,7 @@
 #define CMPPREC (256*4096)
 #define FPREC (256*4096)
 #define USEV5ASM 1
-#define SCISDIST 1.0
+#define SCISDIST 1
 #define GOLDRAT 0.3819660112501052 //Golden Ratio: 1 - 1/((sqrt(5)+1)/2)
 #define ESTNORMRAD 2 //Specially optimized for 2: DON'T CHANGE unless testing!
 
@@ -4639,7 +4639,7 @@ void loadnul (dpoint3d *ipo, dpoint3d *ist, dpoint3d *ihe, dpoint3d *ifo)
 
 	vx5.globalmass = calcglobalmass();
 
-	ipo->x = VSID*.5; ipo->y = VSID*.5; ipo->z = MAXZDIM*.5; //ipo->z = -16;
+	ipo->x = VSID*.5; ipo->y = VSID*.5; ipo->z = -1; //ipo->z = -16;
 	f = 0.0*PI/180.0;
 	ist->x = cos(f); ist->y = sin(f); ist->z = 0;
 	ihe->x = 0; ihe->y = 0; ihe->z = 1;
@@ -4987,11 +4987,17 @@ void loadbsp (const char *filnam, dpoint3d *ipo, dpoint3d *ist, dpoint3d *ihe, d
 
 //Quake3 .BSP loading code ends ----------------------------------------------
 
-long loadvxl (const char *lodfilnam)
+long loadvxl (const char *lodfilnam, dpoint3d *ipo, dpoint3d *ist, dpoint3d *ihe, dpoint3d *ifo)
 {
 	FILE *fil;
 	long i, j, fsiz;
 	char *v, *v2;
+
+	ipo->x = VSID*.5; ipo->y = VSID*.5; ipo->z = -1; //ipo->z = -16;
+	double f = 90.0*PI/180.0;
+	ist->x = cos(f); ist->y = sin(f); ist->z = 0;
+	ihe->x = 0; ihe->y = 0; ihe->z = 1;
+	ifo->x = sin(f); ifo->y = -cos(f); ifo->z = 0;
 
 	if (!vbuf) { vbuf = (long *)malloc((VOXSIZ>>2)<<2); if (!vbuf) evilquit("vbuf malloc failed"); }
 	if (!vbit) { vbit = (long *)malloc((VOXSIZ>>7)<<2); if (!vbit) evilquit("vbuf malloc failed"); }
