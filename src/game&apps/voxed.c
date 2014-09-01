@@ -60,9 +60,14 @@ long sxlmallocsiz = 0, sxlind[MAXSPRITES+1];
 	//sxlind: 1 more for using offsets instead of lengths
 
 	//Position variables:
-#define CLIPRAD 5
+#define CLIPRAD 0.1
+#define SPDRTO 1
 dpoint3d ipos, ivel, istr, ihei, ifor;
 float vx5hx, vx5hy, vx5hz;
+
+//Map/radar vars
+static long vxlmap[VSID*VSID*4];
+static long mapstatus = 0;
 
 	//Timer global variables
 double odtotclk, dtotclk;
@@ -2946,7 +2951,7 @@ void doframe ()
 #else
 		helpdraw();
 #endif
-	else print6x8((xres-(71*6))>>1,yres-8,0xc0c0c0,-1,"VOXlap EDitor by Ken Silverman (advsys.net/ken), edited by Desert Storm");
+	else print6x8((xres-(75*6))>>1,yres-8,0xc0c0c0,-1,"VOXlap EDitor by Ken Silverman (advsys.net/ken), from the AoS-OS repository");
 
 	readkeyboard();
 	if (keystatus[0x58]) //F12
@@ -3004,18 +3009,32 @@ void doframe ()
 	if (!(helpmode&1))
 	{
 			//Keyboard controls
-		if (keystatus[0xcb]) { ivel.x -= istr.x; ivel.y -= istr.y; ivel.z -= istr.z; }
-		if (keystatus[0xcd]) { ivel.x += istr.x; ivel.y += istr.y; ivel.z += istr.z; }
-		if (keystatus[0xc8]) { ivel.x += ifor.x; ivel.y += ifor.y; ivel.z += ifor.z; }
-		if (keystatus[0xd0]) { ivel.x -= ifor.x; ivel.y -= ifor.y; ivel.z -= ifor.z; }
-		if (keystatus[0x9d]) { ivel.x -= ihei.x; ivel.y -= ihei.y; ivel.z -= ihei.z; } //Rt.Ctrl
-		if (keystatus[0x52]) { ivel.x += ihei.x; ivel.y += ihei.y; ivel.z += ihei.z; } //KP0
+		if (keystatus[0xcb]) { ivel.x -= istr.x*SPDRTO; ivel.y -= istr.y*SPDRTO; ivel.z -= istr.z*SPDRTO; }
+		if (keystatus[0xcd]) { ivel.x += istr.x*SPDRTO; ivel.y += istr.y*SPDRTO; ivel.z += istr.z*SPDRTO; }
+		if (keystatus[0xc8]) { ivel.x += ifor.x*SPDRTO; ivel.y += ifor.y*SPDRTO; ivel.z += ifor.z*SPDRTO; }
+		if (keystatus[0xd0]) { ivel.x -= ifor.x*SPDRTO; ivel.y -= ifor.y*SPDRTO; ivel.z -= ifor.z*SPDRTO; }
+		if (keystatus[0x9d]) { ivel.x -= ihei.x*SPDRTO; ivel.y -= ihei.y*SPDRTO; ivel.z -= ihei.z*SPDRTO; } //Rt.Ctrl
+		if (keystatus[0x52]) { ivel.x += ihei.x*SPDRTO; ivel.y += ihei.y*SPDRTO; ivel.z += ihei.z*SPDRTO; } //KP0
 	}
 	else
 	{
 		if (keystatus[0xc8]) helpypos = max(helpypos-(long)(fsynctics*(float)(keystatus[0x36]*16+4-keystatus[0x2a]*3)*32768),0);
 		if (keystatus[0xd0]) helpypos += (long)(fsynctics*(float)(keystatus[0x36]*16+4-keystatus[0x2a]*3)*32768);
 	}
+
+    /*if (keystatus[0x32]){               //M
+        if (mapstatus==0){
+            for(int mapy=0; mapy<VSID; mapy++){
+                for(int mapx=0; mapx<VSID; mapx++)
+                    vxlmap = (long)sptr[getcube(mapx, mapy, getfloorz(mapx, mapy, 0))];
+            }
+        }
+        mapstatus = !mapstatus; keystatus[0x32]=0;
+        if(mapstatus)
+            drawpicinquad((long)vxlmap, VSID*4, VSID, VSID, frameplace, bytesperline, x, y,
+                      x*.5-VSID*.5, y*.5-VSID*.5, x*.5+VSID*.5, y*.5+VSID*.5,
+                      x, y, 0, y);
+    }*/
 
 	if (keystatus[0x37]) //KP*
 	{
@@ -4100,7 +4119,7 @@ void doframe ()
 		if (keystatus[0x38]|keystatus[0xb8])
 		{
 #ifndef _WIN32
-			loadvxl(vxlfilnam);
+			loadvxl(vxlfilnam, &ipos, &istr, &ihei, &ifor);
 			ftol(ipos.x-.5,&lipos.x);
 			ftol(ipos.y-.5,&lipos.y);
 			ftol(ipos.z-.5,&lipos.z);
@@ -4134,7 +4153,7 @@ void doframe ()
 					}
 				}
 				else i = -1;
-				if (loadvxl(v))
+				if (loadvxl(v, &ipos, &istr, &ihei, &ifor))
 				{
 					initsxl(); //IS THIS A GOOD IDEA?
 					strcpy(vxlfilnam,v);
@@ -4644,7 +4663,7 @@ long initapp (long argc, char **argv)
 	//relpathinit(argv[0]); //NOTE: Winmain doesn't pass correct program name!
 
 	prognam = "VOXED by Ken Silverman";
-	xres = 640; yres = 480; colbits = 32; fullscreen = 0;
+	xres = 800; yres = 600; colbits = 32; fullscreen = 0;
 	for(i=argc-1;i>0;i--)
 	{
 		if (argv[i][0] != '/') { argfilindex = i; continue; }
@@ -4716,7 +4735,8 @@ long initapp (long argc, char **argv)
 			else
 			{
 				if (!strchr(vxlfilnam,'.')) strcat(vxlfilnam,".vxl");
-				if (!loadvxl(vxlfilnam)) loadnul(&ipos,&istr,&ihei,&ifor);
+				if (!loadvxl(vxlfilnam, &ipos, &istr, &ihei, &ifor))
+                    loadnul(&ipos,&istr,&ihei,&ifor);
 				initsxl();
 			}
 		}
@@ -4725,7 +4745,8 @@ long initapp (long argc, char **argv)
 	{
 		if (voxedloadsxl(sxlfilnam))
 		{
-			if (!loadvxl(vxlfilnam)) loadnul(&ipos,&istr,&ihei,&ifor);
+			if (!loadvxl(vxlfilnam, &ipos, &istr, &ihei, &ifor))
+                loadnul(&ipos,&istr,&ihei,&ifor);
 		}
 		else
 		{
