@@ -61,12 +61,11 @@ long sxlmallocsiz = 0, sxlind[MAXSPRITES+1];
 
 	//Position variables:
 #define CLIPRAD 0.1
-#define SPDRTO 1
 dpoint3d ipos, ivel, istr, ihei, ifor;
 float vx5hx, vx5hy, vx5hz;
 
 //Map/radar vars
-static long vxlmap[VSID*VSID*4];
+static long vxlmap[VSID*VSID];
 static long mapstatus = 0;
 
 	//Timer global variables
@@ -2486,6 +2485,8 @@ void doframe ()
 	long i, j, k, l, m, x, y, z, xx, yy, zz, r, g, b, bakcol;
 	char snotbuf[max(MAX_PATH+1,256)], ch, *v;
 
+	clearscreen(0x000000);
+
 	startdirectdraw(&frameplace,&bytesperline,&x,&y);
 	voxsetframebuffer(frameplace,bytesperline,x,y);
 	if ((x != oxres) || (y != oyres))
@@ -2554,7 +2555,7 @@ void doframe ()
 		//(0.225,.0275,.60) : This looks like cube-aspect ratio, but is it?
 	if (!(numframes&1)) { f = +0.5; vx5hx = xres*(.5+.06); }
 						else { f = -0.5; vx5hx = xres*(.5-.06); }
-	vx5hy = yres*.5; vx5hz = xres*.6;
+	vx5hy = yres*.5; vx5hz = xres*.5;
 	dp.x = istr.x*f+ipos.x; dp.y = istr.y*f+ipos.y; dp.z = istr.z*f+ipos.z;
 	setcamera(&dp,&istr,&ihei,&ifor,vx5hx,vx5hy,vx5hz);
 	opticast();
@@ -2932,9 +2933,9 @@ void doframe ()
 	else if (hind)
 		print4x6(0L,8,0xc0c0c0,-1,"(%ld,%ld,%ld)",hit.x,hit.y,hit.z);
 
-	//print4x6(0,24,0xffffff,-1,"Pos:(%.8f, %.8f, %.8f)",ipos.x,ipos.y,ipos.z);
-	//print4x6(0,32,0xffffff,-1,"Vec:(%.8f, %.8f, %.8f)",ivel.x,ivel.y,ivel.z);
-	//print4x6(0,40,0xffffff,-1,"MaxCliprad:%.8f",findmaxcr(ipos.x,ipos.y,ipos.z,CLIPRAD));
+	print4x6(0,24,0xffffff,-1,"Pos:(%.8f, %.8f, %.8f)",ipos.x,ipos.y,ipos.z);
+	print4x6(0,32,0xffffff,-1,"Vec:(%.8f, %.8f, %.8f)",ivel.x,ivel.y,ivel.z);
+	print4x6(0,40,0xffffff,-1,"MaxCliprad:%.8f",findmaxcr(ipos.x,ipos.y,ipos.z,CLIPRAD));
 
 		//Show last message
 	if (totclk < messagetimeout)
@@ -3009,12 +3010,12 @@ void doframe ()
 	if (!(helpmode&1))
 	{
 			//Keyboard controls
-		if (keystatus[0xcb]) { ivel.x -= istr.x*SPDRTO; ivel.y -= istr.y*SPDRTO; ivel.z -= istr.z*SPDRTO; }
-		if (keystatus[0xcd]) { ivel.x += istr.x*SPDRTO; ivel.y += istr.y*SPDRTO; ivel.z += istr.z*SPDRTO; }
-		if (keystatus[0xc8]) { ivel.x += ifor.x*SPDRTO; ivel.y += ifor.y*SPDRTO; ivel.z += ifor.z*SPDRTO; }
-		if (keystatus[0xd0]) { ivel.x -= ifor.x*SPDRTO; ivel.y -= ifor.y*SPDRTO; ivel.z -= ifor.z*SPDRTO; }
-		if (keystatus[0x9d]) { ivel.x -= ihei.x*SPDRTO; ivel.y -= ihei.y*SPDRTO; ivel.z -= ihei.z*SPDRTO; } //Rt.Ctrl
-		if (keystatus[0x52]) { ivel.x += ihei.x*SPDRTO; ivel.y += ihei.y*SPDRTO; ivel.z += ihei.z*SPDRTO; } //KP0
+		if (keystatus[0xcb]) { ivel.x -= istr.x; ivel.y -= istr.y; ivel.z -= istr.z; }
+		if (keystatus[0xcd]) { ivel.x += istr.x; ivel.y += istr.y; ivel.z += istr.z; }
+		if (keystatus[0xc8]) { ivel.x += ifor.x; ivel.y += ifor.y; ivel.z += ifor.z; }
+		if (keystatus[0xd0]) { ivel.x -= ifor.x; ivel.y -= ifor.y; ivel.z -= ifor.z; }
+		if (keystatus[0x9d]) { ivel.x -= ihei.x; ivel.y -= ihei.y; ivel.z -= ihei.z; } //Rt.Ctrl
+		if (keystatus[0x52]) { ivel.x += ihei.x; ivel.y += ihei.y; ivel.z += ihei.z; } //KP0
 	}
 	else
 	{
@@ -3022,11 +3023,12 @@ void doframe ()
 		if (keystatus[0xd0]) helpypos += (long)(fsynctics*(float)(keystatus[0x36]*16+4-keystatus[0x2a]*3)*32768);
 	}
 
-    /*if (keystatus[0x32]){               //M
+    if (keystatus[0x32]){               //M
         if (mapstatus==0){
             for(int mapy=0; mapy<VSID; mapy++){
-                for(int mapx=0; mapx<VSID; mapx++)
-                    vxlmap = (long)sptr[getcube(mapx, mapy, getfloorz(mapx, mapy, 0))];
+                for(int mapx=0; mapx<VSID; mapx++){
+                    vxlmap[mapx+mapy*VSID] = (long)sptr[getcube(mapx, mapy, getfloorz(mapx, mapy, 0))];
+                }
             }
         }
         mapstatus = !mapstatus; keystatus[0x32]=0;
@@ -3034,7 +3036,7 @@ void doframe ()
             drawpicinquad((long)vxlmap, VSID*4, VSID, VSID, frameplace, bytesperline, x, y,
                       x*.5-VSID*.5, y*.5-VSID*.5, x*.5+VSID*.5, y*.5+VSID*.5,
                       x, y, 0, y);
-    }*/
+    }
 
 	if (keystatus[0x37]) //KP*
 	{
@@ -3093,7 +3095,7 @@ void doframe ()
 		}
 		pathcnt = -1;
 	}
-	if (keystatus[0x45]) //Numlock
+	/*if (keystatus[0x45]) //Numlock
 	{
 		keystatus[0x45] = 0;
 		if (keystatus[0x1d]|keystatus[0x9d])
@@ -3125,7 +3127,7 @@ void doframe ()
 		sprintf(message,"mip=%d max=%d",vx5.mipscandist,vx5.maxscandist);
 		messagetimeout = totclk+4000;
 	}
-
+    */
 	if (backedup >= 0)
 	{
 		i = 0; if (gridmode) j = gridmode; else j = (keystatus[0x2a]*3+1)*(keystatus[0x36]*3+1);
@@ -3303,6 +3305,7 @@ void doframe ()
 		ftol(ipos.y-.5,&lipos.y);
 		ftol(ipos.z-.5,&lipos.z);
 	}
+
 
 	if (keystatus[0x13]) { keystatus[0x13] = 0; angincmode ^= 1; if (!angincmode) vx5.anginc = 1; }  //R
 	if (keystatus[0x1e]) { keystatus[0x1e] = 0; anglemode ^= 1; fixanglemode(); } //A
@@ -3912,7 +3915,7 @@ void doframe ()
 		keystatus[0x29] = 0;
 		if (!vx5.lightmode) setsideshades(0,0,0,0,0,0);
 		vx5.lightmode++; if (vx5.lightmode >= 3) vx5.lightmode = 0;
-		if (!vx5.lightmode) setsideshades(0,28,8,24,12,12);
+		if (!vx5.lightmode) setsideshades(0,64,32,32,16,48);
 		if (vx5.lightmode)
 		{
 			voxrestore();
@@ -4240,13 +4243,13 @@ void doframe ()
 		}
 	}
 
-	if (keystatus[0x44]) //F10: mip testing... TEMP HACK!!!
+	/*if (keystatus[0x44]) //F10: mip testing... TEMP HACK!!!
 	{
 		keystatus[0x44] = 0;
 		if (vx5.vxlmipuse > 1)      { vx5.vxlmipuse = 1; vx5.maxscandist = 256; }
 		else { vx5.mipscandist = 128; vx5.vxlmipuse = 9; vx5.maxscandist = 768; }
 		genmipvxl(0,0,VSID,VSID);
-	}
+	}*/
 
 	if (keystatus[0x1d])  //L.Ctrl
 	{
@@ -4702,6 +4705,8 @@ long initapp (long argc, char **argv)
 	initrgbcolselect();
 
 	vx5.fallcheck = 0; //Voxed doesn't need this!
+	vx5.mipscandist = 69;
+	vx5.maxscandist = 128;
 
 	kzaddstack("voxdata.zip");
 
@@ -4755,7 +4760,7 @@ long initapp (long argc, char **argv)
 		}
 	}
 	fixanglemode();
-	setsideshades(0,28,8,24,12,12);
+	setsideshades(0,64,32,32,16,48);
 
 	//if (!skyfilnam[0]) strcpy(skyfilnam,"png/voxsky.png");
 	//if (skyfilnam[0]) loadsky(skyfilnam);
