@@ -3712,8 +3712,8 @@ double findmaxcr (double px, double py, double pz, double cr)
 	long x, y, z, i0, i1, ix, y0, y1, z0, z1;
 	char *v;
 
-	thresh2 = cr+1.7321+1; thresh2 *= thresh2;
-	maxcr = cr*cr;
+	thresh2 = cr+1.7321+1; thresh2 *= thresh2; //thresh2 = 8.02079041
+	maxcr = cr*cr; //maxcr = 0.01
 
 		//Find closest point of all nearby cubes to (px,py,pz)
 	x = (long)px; y = (long)py; z = (long)pz; i0 = i1 = 0; ix = x; y0 = y1 = y;
