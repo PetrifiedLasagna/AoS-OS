@@ -6,18 +6,6 @@ This is the development repository for Ace of Spades - Open Source. All contribu
 
 For those willing to contribute I will be including a default workspace so that it is possible to compile and make changes to the 'current' version of all the files. Also you are not to remove any credits from the top of files or that will be outputted to the window of the application.
 
-everything I use to compile is inside default workspace including:
-
-microsoft visual c/c++ toolkit 2003
-
-Direct X SDK
-
-Voxlap unmodified source code
-
-This does not include the masm32 assembler which is needed to make changes to v5.asm. You can download it from here http://www.masm32.com/masmdl.htm
-
-after that all you need to do is change setup.bat and vcvars32.bat to match you paths and you can compile by running makestuf.bat or the command nmake [file]
-
 Please read the README in default workspace for further instructions.
 
 ========Licenense========
