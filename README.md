@@ -18,8 +18,8 @@ This does not include the masm32 assembler which is needed to make changes to v5
 
 after that all you need to do is change setup.bat and vcvars32.bat to match you paths and you can compile by running makestuf.bat or the command nmake [file]
 
+Please read the README in default workspace for further instructions.
+
 ========Licenense========
 
 in addition to the license that comes with the voxlap source code, those who wish to modify any of the code in this repository and distribute elsewhere must leave a link to this repository.
-
-Also those who wish to contribute must compile and test your changes on the >LATEST< source before adding the changes to the repository
