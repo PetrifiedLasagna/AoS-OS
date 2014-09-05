@@ -2499,6 +2499,10 @@ void doframe ()
 	while (isvoxelsolid(lipos.x,lipos.y,lipos.z))
 		{ ipos.z--; ftol(ipos.z-.5,&lipos.z); }
 
+    ftol(ipos.z,&lipos.z);
+    if(isvoxelsolid(lipos.x,lipos.y,lipos.z))
+        ipos.z--;
+
 	//--------------------------------
 	hitscan(&ipos,&ifor,&hit,&hind,&hdir);
 	if ((hind) && (!colselectmode))
