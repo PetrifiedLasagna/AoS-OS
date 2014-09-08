@@ -2486,8 +2486,6 @@ void doframe ()
 	long i, j, k, l, m, x, y, z, xx, yy, zz, r, g, b, bakcol;
 	char snotbuf[max(MAX_PATH+1,256)], ch, *v;
 
-	clearscreen(0x000000);
-
 	startdirectdraw(&frameplace,&bytesperline,&x,&y);
 	voxsetframebuffer(frameplace,bytesperline,x,y);
 	if ((x != oxres) || (y != oyres))
@@ -2921,9 +2919,7 @@ void doframe ()
 	}
 
 	if(mapstatus){
-            drawpicinquad((long)&vxlmap[0], VSID*4, VSID, VSID, frameplace, bytesperline, x, y,
-                      (x-VSID)*.5, (y-VSID)*.5, (x+VSID)*.5, (y-VSID)*.5,
-                      (x+VSID)*.5, (y+VSID)*.5, (x-VSID)*.5, (y+VSID)*.5);
+            drawtile((long)vxlmap, VSID*4, VSID, VSID, VSID<<15,VSID<<15,x<<15,y<<15, 65536,65536, 0,0);
 
             drawline2d(x*.5-VSID*.5+lipos.x, y*.5-VSID*.5+lipos.y,
                        x*.5-VSID*.5+lipos.x+ifor.x*7, y*.5-VSID*.5+lipos.y+ifor.y*7, 0xffffff);
@@ -2947,9 +2943,9 @@ void doframe ()
 	else if (hind)
 		print4x6(0L,8,0xc0c0c0,-1,"(%ld,%ld,%ld)",hit.x,hit.y,hit.z);
 
-	print4x6(0,24,0xffffff,-1,"Pos:(%.8f, %.8f, %.8f)",ipos.x,ipos.y,ipos.z);
-	print4x6(0,32,0xffffff,-1,"Vec:(%.8f, %.8f, %.8f)",ivel.x,ivel.y,ivel.z);
-	print4x6(0,40,0xffffff,-1,"MaxCliprad:%.8f",findmaxcr(ipos.x,ipos.y,ipos.z,CLIPRAD));
+	//print4x6(0,24,0xffffff,-1,"Pos:(%.8f, %.8f, %.8f)",ipos.x,ipos.y,ipos.z);
+	//print4x6(0,32,0xffffff,-1,"Vec:(%.8f, %.8f, %.8f)",ivel.x,ivel.y,ivel.z);
+	//print4x6(0,40,0xffffff,-1,"MaxCliprad:%.8f",findmaxcr(ipos.x,ipos.y,ipos.z,CLIPRAD));
 
 		//Show last message
 	if (totclk < messagetimeout)
@@ -4718,7 +4714,7 @@ long initapp (long argc, char **argv)
 	vx5.fallcheck = 0; //Voxed doesn't need this!
 	vx5.mipscandist = 69;
 	vx5.maxscandist = 128;
-	
+
 	vxlmap = (long*) malloc(VSID*VSID*sizeof(long));
 
 	if (argfilindex >= 0)
