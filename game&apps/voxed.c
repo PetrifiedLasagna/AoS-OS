@@ -65,7 +65,7 @@ dpoint3d ipos, ivel, istr, ihei, ifor;
 float vx5hx, vx5hy, vx5hz;
 
 //Map/radar vars
-static long vxlmap[VSID*VSID];
+static long *vxlmap;
 static long mapstatus = 0;
 
 	//Timer global variables
@@ -2457,6 +2457,7 @@ void helpdraw ()
 void uninitapp ()
 {
 	long i;
+	free(vxlmap);
 
 	if (sxlbuf) { free(sxlbuf); sxlbuf = 0; }
 	if (helpbuf) { free(helpbuf); helpbuf = 0; }
@@ -2484,8 +2485,6 @@ void doframe ()
 	float f, t, ox, oy, oz, dx, dy, dz, rr[9], fmousx, fmousy;
 	long i, j, k, l, m, x, y, z, xx, yy, zz, r, g, b, bakcol;
 	char snotbuf[max(MAX_PATH+1,256)], ch, *v;
-
-	clearscreen(0x000000);
 
 	startdirectdraw(&frameplace,&bytesperline,&x,&y);
 	voxsetframebuffer(frameplace,bytesperline,x,y);
@@ -2919,6 +2918,13 @@ void doframe ()
 		drawpoint2d(xres>>1,yres>>1,rand());
 	}
 
+	if(mapstatus){
+            drawtile((long)vxlmap, VSID*4, VSID, VSID, VSID<<15,VSID<<15,x<<15,y<<15, 65536,65536, 0,0);
+
+            drawline2d(x*.5-VSID*.5+lipos.x, y*.5-VSID*.5+lipos.y,
+                       x*.5-VSID*.5+lipos.x+ifor.x*7, y*.5-VSID*.5+lipos.y+ifor.y*7, 0xffffff);
+	}
+
 	//--------------------------------
 
 	odtotclk = dtotclk; readklock(&dtotclk);
@@ -2937,9 +2943,9 @@ void doframe ()
 	else if (hind)
 		print4x6(0L,8,0xc0c0c0,-1,"(%ld,%ld,%ld)",hit.x,hit.y,hit.z);
 
-	print4x6(0,24,0xffffff,-1,"Pos:(%.8f, %.8f, %.8f)",ipos.x,ipos.y,ipos.z);
-	print4x6(0,32,0xffffff,-1,"Vec:(%.8f, %.8f, %.8f)",ivel.x,ivel.y,ivel.z);
-	print4x6(0,40,0xffffff,-1,"MaxCliprad:%.8f",findmaxcr(ipos.x,ipos.y,ipos.z,CLIPRAD));
+	//print4x6(0,24,0xffffff,-1,"Pos:(%.8f, %.8f, %.8f)",ipos.x,ipos.y,ipos.z);
+	//print4x6(0,32,0xffffff,-1,"Vec:(%.8f, %.8f, %.8f)",ivel.x,ivel.y,ivel.z);
+	//print4x6(0,40,0xffffff,-1,"MaxCliprad:%.8f",findmaxcr(ipos.x,ipos.y,ipos.z,CLIPRAD));
 
 		//Show last message
 	if (totclk < messagetimeout)
@@ -3029,17 +3035,14 @@ void doframe ()
 
     if (keystatus[0x32]){               //M
         if (mapstatus==0){
-            for(int mapy=0; mapy<VSID; mapy++){
-                for(int mapx=0; mapx<VSID; mapx++){
-                    vxlmap[mapx+mapy*VSID] = (long)sptr[getcube(mapx, mapy, getfloorz(mapx, mapy, 0))];
+            for(long mapy=0; mapy<VSID; mapy++){
+                for(long mapx=0; mapx<VSID; mapx++){
+                    long *bcol = (long *) getcube(mapx, mapy, getfloorz(mapx, mapy, 0));
+                    vxlmap[mapx+VSID*mapy] = *bcol;
                 }
             }
         }
         mapstatus = !mapstatus; keystatus[0x32]=0;
-        if(mapstatus)
-            drawpicinquad((long)vxlmap, VSID*4, VSID, VSID, frameplace, bytesperline, x, y,
-                      x*.5-VSID*.5, y*.5-VSID*.5, x*.5+VSID*.5, y*.5+VSID*.5,
-                      x, y, 0, y);
     }
 
 	if (keystatus[0x37]) //KP*
@@ -4712,7 +4715,7 @@ long initapp (long argc, char **argv)
 	vx5.mipscandist = 69;
 	vx5.maxscandist = 128;
 
-	kzaddstack("voxdata.zip");
+	vxlmap = (long*) malloc(VSID*VSID*sizeof(long));
 
 	if (argfilindex >= 0)
 	{
