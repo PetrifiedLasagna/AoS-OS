@@ -5,6 +5,12 @@
 
 #define TIME_CHECK 1
 
+struct pckdata{
+    int type;
+    int length;
+    BYTE *data;
+};
+
 enum{
 DtaPositionData,DtaOrientationData,DtaWorldUpdate,DtaInputData,DtaWeaponInput,DtaHitPacket,DtaGrenadePacket,DtaSetTool,DtaSetColor,DtaExistingPlayer,DtaShortPlayerData,DtaMoveObject,DtaCreatePlayer,DtaBlockAction,
 DtaBlockLine,DtaStateData,DtaKillAction,DtaChatMessage,DtaMapStart,DtaMapChunk,DtaPlayerLeft,DtaTerritoryCapture,
@@ -12,28 +18,29 @@ DtaProgressBar,DtaIntelCapture,DtaIntelPickup,DtaIntelDrop,DtaRestock,DtaFogColo
 };
 
 enum{
-StatusNotConnected,StatusWaitingMapS,StatusWaitingMapC,StatusConnected
+StatusNotConnected,StatusWaitingMapC,StatusConnected
 };
 
 class CNet{
 public:
+    unsigned long int currs;
+    unsigned int msize;
     int netstatus;
     int init();
     ~CNet();
     int connect_host(char address[], int info);
     int disconnect_host(int info);
-    int check_packet(BYTE **packet);
-    int send_packet(BYTE *packet);
-    int handle_packet(BYTE *pdata, ...);
+    int check_packet(pckdata *packet);
+    int send_packet(pckdata packet);
+    int handle_packet(pckdata packet, ...);
 private:
+    unsigned int mapt;
     char *tmpm;
-    UINT32 currs;
-    UINT32 msize;
     ENetHost *client;
     ENetPeer *host;
     ENetAddress host_address;
-    ENetEvent event;
 
+    int map_pump();
     int aos_to_ip(char address[]);
 };
 

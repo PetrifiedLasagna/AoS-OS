@@ -1,6 +1,7 @@
 #if 0
 AoS-OS.exe : AoS-OS.obj voxlap5.obj v5.obj kplib.obj winmain.obj AoS-OS.cpp cnet.obj cnet.cpp;
-	link AoS-OS cnet voxlap5 v5 kplib winmain ddraw.lib dinput.lib ole32.lib dxguid.lib user32.lib gdi32.lib ws2_32.lib winmm.lib enet.lib zdll.lib /opt:nowin98
+	link AoS-OS cnet voxlap5 v5 kplib winmain ddraw.lib dinput.lib ole32.lib dxguid.lib user32.lib gdi32.lib ws2_32.lib winmm.lib /opt:nowin98
+
 AoS-OS.obj : AoS-OS.cpp voxlap5.h sysmain.h;
 	cl /c /J /TP AoS-OS.cpp /Ox /Ob2 /G6Fy /Gs /ML /QIfist
 cnet.obj : cnet.cpp cnet.h sysmain.h;
@@ -18,6 +19,7 @@ for the Ace of Spades code
 
 #include "sysmain.h"
 #include <math.h>
+#include <stdio.h>
 #include "voxlap5.h"
 
 #include "cnet.h"
@@ -35,22 +37,19 @@ char address[28];
 dpoint3d ipos,istr,ifor,ihei;
 
 int netframe(){
-    BYTE *packet;
+    pckdata packet;
 
     int ret = network.check_packet(&packet);
 
     if(ret==0){
-        switch(packet[0]){
-        case DtaMapStart:
-            network.handle_packet(packet);
-            break;
-        case DtaMapChunk:
-            network.handle_packet(packet,sptr);
-            break;
+        if(mode==1){
+            if(network.handle_packet(packet))
+                return 2;
         }
     }else if(ret>1){
         return 1;
     }
+    free(packet.data);
     return 0;
 }
 
@@ -70,7 +69,10 @@ long initapp (long argc, char **argv)
     if(network.init())return -2;
 
     if(argc>1){
+        memset(sptr, 0, sizeof(char)*VSID*VSID);
         strcpy(address, argv[1]);
+        ipos.x = ipos.y = VSID>>2;ipos.z = -3;
+        dorthorotate(0, 0, 0, &istr, &ihei, &ifor);
         return 0;
     }
     MessageBox(ghwnd, "Supply me with an AoS address(server address, port, version)\nEx. aos://16777343:32887:0.75", "", MB_OK);
@@ -85,6 +87,12 @@ void doframe ()
 
     switch(mode){
         case 0:{
+            startdirectdraw(&frameptr, &pitch, &xdim, &ydim);
+            voxsetframebuffer(frameptr, pitch, xdim, ydim);
+            clearscreen(0);
+            stopdirectdraw();
+            nextpage();
+
             if(network.connect_host(address, 3)){
                 quitloop();
                 return;
@@ -93,18 +101,32 @@ void doframe ()
             return;
         }
         case 1:{
-            if(currt-lastt>=TIME_CHECK){
-                lastt = currt;
-                if(netframe()){
-                    quitloop();
-                    return;
-                }
-                if(network.netstatus==StatusConnected){
-                    updatevxl();
-                    network.disconnect_host(0);
-                    mode = 2;
-                }
+            if(netframe()){
+                quitloop();
+                return;
             }
+            if(network.netstatus==StatusConnected){
+                updatevxl();
+                network.disconnect_host(0);
+                MessageBox(ghwnd, "it worked!", "", MB_OK);
+                mode = 2;
+                return;
+            }
+            startdirectdraw(&frameptr, &pitch, &xdim, &ydim);
+            voxsetframebuffer(frameptr, pitch, xdim, ydim);
+
+            clearscreen(0);
+            print6x8(0,0,0xffffffff, -1, "loading map: %lu%/%lu", (unsigned long int)network.currs, (unsigned long int)network.msize);
+
+            stopdirectdraw();
+            nextpage();
+
+            readkeyboard();
+            if(keystatus[1]){
+                MessageBox(ghwnd, "Aborted map loading", "", MB_OK);
+                quitloop();
+            }
+
             return;
         }
         case 2:{

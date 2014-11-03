@@ -1,9 +1,17 @@
+#include <enet/enet.h>
 #include <zlib/zlib.h>
 #include "sysmain.h"
+#include "voxlap5.h"
 #include "cnet.h"
+
+#pragma comment(lib, "enet.lib")
+#pragma comment(lib, "zdll.lib")
+
+#define MAP_CHUNK 65536
 
 int CNet::init(){
     netstatus=StatusNotConnected;
+    msize = currs = 0;
     client=NULL;
     host=NULL;
     host_address.host=NULL;
@@ -32,6 +40,7 @@ CNet::~CNet(){
 }
 
 int CNet::connect_host(char address[], int info){
+    ENetEvent event;
     if (strpbrk(address, "aos://")!=NULL){
         int ret = aos_to_ip(address);
         if(ret==1){
@@ -53,7 +62,7 @@ int CNet::connect_host(char address[], int info){
     }
 
     if(enet_host_service(client, &event, 7000) && event.type==ENET_EVENT_TYPE_CONNECT){
-        netstatus=StatusWaitingMapS;
+        netstatus=StatusWaitingMapC;
         return 0;
     }
     MessageBox(ghwnd, "Failed to establish connection with host", "ERROR", MB_OK);
@@ -64,6 +73,7 @@ int CNet::disconnect_host(int info){
     if(host!=NULL && netstatus!=StatusNotConnected){
         netstatus=StatusNotConnected;
         enet_peer_disconnect(host, info);
+        ENetEvent event;
         while(enet_host_service(client, &event, 2500)>0){
             switch(event.type){
                 case ENET_EVENT_TYPE_RECEIVE:
@@ -81,9 +91,12 @@ int CNet::disconnect_host(int info){
     return 0;
 }
 
-int CNet::check_packet(BYTE **packet){
+int CNet::check_packet(pckdata *packet){
+    int pckt;
+    ENetEvent event;
     if(netstatus==StatusNotConnected)return 3;
-    if(enet_host_service(client, &event, 0)>0){
+    if(netstatus==StatusConnected){pckt=10;}else{pckt=0;}
+    if(enet_host_service(client, &event, pckt)>0){
         switch(event.type){
             case ENET_EVENT_TYPE_DISCONNECT:
                 MessageBox(ghwnd, "You were disconnected from the host", "", MB_OK);
@@ -91,8 +104,10 @@ int CNet::check_packet(BYTE **packet){
                 break;
 
             case ENET_EVENT_TYPE_RECEIVE:
-                *packet = (BYTE*) malloc(event.packet->dataLength);
-                memcpy(packet, event.packet->data, event.packet->dataLength);
+                packet->length = event.packet->dataLength-1;
+                packet->type = event.packet->data[0];
+                packet->data = (BYTE*) malloc(packet->length);
+                memcpy(packet->data, &event.packet->data[1], packet->length);
                 enet_packet_destroy(event.packet);
                 break;
         }
@@ -102,69 +117,105 @@ int CNet::check_packet(BYTE **packet){
     return 0;
 }
 
-int CNet::send_packet(BYTE *packet){
+int CNet::send_packet(pckdata packet){
     return 0;
 }
 
-int CNet::handle_packet(BYTE *pdata, ...){
+int CNet::handle_packet(pckdata pdata, ...){
 
-    va_list args;
-    switch(pdata[0]){
-    case DtaMapStart:
-        if(netstatus!=StatusWaitingMapS){
-            MessageBox(ghwnd, "Unexpected Packet", "ERROR", MB_OK);
-            return 1;
-        }
-        currs = 0;
-        memcpy(&msize, &pdata[1], 4);
-        tmpm = (char*) malloc(msize);
-        netstatus = StatusWaitingMapC;
-        break;
+    if(netstatus==StatusNotConnected){
+        MessageBox(ghwnd, "checked for packet before connected", "ERROR", MB_OK);
+        return 5;
+    }else if(netstatus==StatusWaitingMapC){
 
-    case DtaMapChunk:
-        if(netstatus!=StatusWaitingMapC){
-            MessageBox(ghwnd, "Unexpected Packet", "ERROR", MB_OK);
-            return 2;
-        }
-        memcpy(&tmpm[currs], &pdata[1], sizeof(pdata)-1);
-        currs+=sizeof(pdata)-1;
-        if(currs==msize){
-            va_start(args, pdata);
-            char *sptr = va_arg(args, char*);
+        if(pdata.type==DtaMapStart){
+            msize = currs = 0;
+            msize = pdata.data[0] | pdata.data[1]<<8 | pdata.data[2]<<16 | pdata.data[3]<<24;
+            tmpm = (char*) malloc(msize);
+            mapt = 30;
+            return 0;
 
-            z_stream mapbuff;
+        }else if(pdata.type==DtaMapChunk){
+            memcpy(&tmpm[currs], pdata.data, pdata.length);
+            currs+=pdata.length;
+            if(currs==msize || mapt<=0){
+                if(map_pump()){
+                    MessageBox(ghwnd, "failed to inflate map data", "ERROR", MB_OK);
+                    return 3;
 
-            mapbuff.zalloc = Z_NULL;
-            mapbuff.zfree = Z_NULL;
-            mapbuff.opaque = Z_NULL;
-            mapbuff.avail_in = 0;
-            mapbuff.avail_out = Z_NULL;
-
-            if(inflateInit(&mapbuff)!=0)return 3;
-
-            mapbuff.avail_in = currs;
-            mapbuff.next_in = (Bytef*)tmpm;
-            do{
-                mapbuff.avail_out = currs;
-                mapbuff.next_out = (Bytef*)sptr;
-
-                int ret = inflate(&mapbuff, Z_NO_FLUSH);
-                switch(ret){
-                case Z_NEED_DICT:
-                    ret = Z_DATA_ERROR;
-                case Z_DATA_ERROR:
-                case Z_MEM_ERROR:
-                    inflateEnd(&mapbuff);
-                    return ret;
+                }else{
+                    netstatus=StatusConnected;
                 }
+                MessageBox(ghwnd, "pump done", "", MB_OK);
+            }
+            return 0;
 
-            }while(mapbuff.avail_out == 0);
-
-            inflateEnd(&mapbuff);
-            netstatus = StatusConnected;
-            break;
+        } else if(pdata.type != DtaWorldUpdate &&
+                    pdata.type != DtaExistingPlayer &&
+                    pdata.type != DtaCreatePlayer){
+            if(map_pump()){
+                MessageBox(ghwnd, "failed to inflate map data", "ERROR", MB_OK);
+                return 3;
+            }else{
+                netstatus=StatusConnected;
+            }
+            MessageBox(ghwnd, "pump done", "", MB_OK);
         }
+        mapt--;
     }
+    return 0;
+}
+
+int CNet::map_pump(){
+    MessageBox(ghwnd, "decompressing", "", MB_OK);
+
+    int ret;
+    unsigned int offs = 0;
+    unsigned int have;
+    z_stream strm;
+    char out[MAP_CHUNK];
+    char mapbuff[VSID*VSID];
+
+    strm.zalloc = Z_NULL;
+    strm.zfree = Z_NULL;
+    strm.opaque = Z_NULL;
+    strm.avail_in = 0;
+    strm.next_in = Z_NULL;
+    ret = inflateInit(&strm);
+    if (ret != Z_OK)
+        return 1;
+
+    do {
+        if(msize-offs>MAP_CHUNK){strm.avail_in=MAP_CHUNK;}else strm.avail_in=msize-offs;
+        if (strm.avail_in == 0)
+            break;
+
+        do {
+            strm.avail_out = MAP_CHUNK;
+            strm.next_out = (Bytef*)out;
+            ret = inflate(&strm, Z_NO_FLUSH);
+            if(ret==Z_STREAM_ERROR){
+                MessageBox(ghwnd, "Zlib was unable to inflate the map data", "", MB_OK);
+                return 2;
+            }
+            switch (ret) {
+            case Z_NEED_DICT:
+                ret = Z_DATA_ERROR;
+            case Z_DATA_ERROR:
+            case Z_MEM_ERROR:
+                (void)inflateEnd(&strm);
+                return 3;
+            }
+            have = MAP_CHUNK - strm.avail_out;
+            memcpy(mapbuff+offs, out, have);
+            offs+=have;
+        } while (strm.avail_out == 0);
+
+    } while (ret != Z_STREAM_END);
+
+    inflateEnd(&strm);
+
+    setspans((vspans*)mapbuff, VSID*VSID, (0,0,0), 0);
 
     return 0;
 }
