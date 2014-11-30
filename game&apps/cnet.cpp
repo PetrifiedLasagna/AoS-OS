@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <enet/enet.h>
 #include <zlib/zlib.h>
 #include "sysmain.h"
@@ -7,7 +8,7 @@
 #pragma comment(lib, "enet.lib")
 #pragma comment(lib, "zdll.lib")
 
-#define MAP_CHUNK 65536
+#define VOXSIZ VSID*VSID*128
 
 int CNet::init(){
     netstatus=StatusNotConnected;
@@ -146,7 +147,6 @@ int CNet::handle_packet(pckdata pdata, ...){
                 }else{
                     netstatus=StatusConnected;
                 }
-                MessageBox(ghwnd, "pump done", "", MB_OK);
             }
             return 0;
 
@@ -159,7 +159,6 @@ int CNet::handle_packet(pckdata pdata, ...){
             }else{
                 netstatus=StatusConnected;
             }
-            MessageBox(ghwnd, "pump done", "", MB_OK);
         }
         mapt--;
     }
@@ -167,55 +166,40 @@ int CNet::handle_packet(pckdata pdata, ...){
 }
 
 int CNet::map_pump(){
-    MessageBox(ghwnd, "decompressing", "", MB_OK);
-
-    int ret;
-    unsigned int offs = 0;
-    unsigned int have;
-    z_stream strm;
-    char out[MAP_CHUNK];
-    char mapbuff[VSID*VSID];
-
-    strm.zalloc = Z_NULL;
+	
+    int ret = -1, err = -1;
+    char *mapbuff = (char*) malloc((VOXSIZ>>2)<<2);
+	
+	z_stream strm = {0};
+	
+	strm.total_in = strm.avail_in = msize;
+	strm.total_out = strm.avail_out = (VOXSIZ>>2)<<2;
+    strm.next_in = (Bytef *) tmpm;
+	strm.next_out = (Bytef *) mapbuff;
+	
+	strm.zalloc = Z_NULL;
     strm.zfree = Z_NULL;
     strm.opaque = Z_NULL;
-    strm.avail_in = 0;
-    strm.next_in = Z_NULL;
-    ret = inflateInit(&strm);
-    if (ret != Z_OK)
-        return 1;
+	
+	err = inflateInit2(&strm, (15+32));
+	if(err == Z_OK){
+		err = inflate(&strm, Z_FINISH);
+		
+		if(err == Z_STREAM_END){
+			ret = strm.total_out;
+		}else{
+			inflateEnd(&strm);
+			return err;
+		}
+	}else{
+		inflateEnd(&strm);
+		return err;
+	}
 
-    do {
-        if(msize-offs>MAP_CHUNK){strm.avail_in=MAP_CHUNK;}else strm.avail_in=msize-offs;
-        if (strm.avail_in == 0)
-            break;
+	loadmem(mapbuff, (long)ret);
 
-        do {
-            strm.avail_out = MAP_CHUNK;
-            strm.next_out = (Bytef*)out;
-            ret = inflate(&strm, Z_NO_FLUSH);
-            if(ret==Z_STREAM_ERROR){
-                MessageBox(ghwnd, "Zlib was unable to inflate the map data", "", MB_OK);
-                return 2;
-            }
-            switch (ret) {
-            case Z_NEED_DICT:
-                ret = Z_DATA_ERROR;
-            case Z_DATA_ERROR:
-            case Z_MEM_ERROR:
-                (void)inflateEnd(&strm);
-                return 3;
-            }
-            have = MAP_CHUNK - strm.avail_out;
-            memcpy(mapbuff+offs, out, have);
-            offs+=have;
-        } while (strm.avail_out == 0);
-
-    } while (ret != Z_STREAM_END);
-
-    inflateEnd(&strm);
-
-    setspans((vspans*)mapbuff, VSID*VSID, (0,0,0), 0);
+    delete &mapbuff;
+    free(tmpm);
 
     return 0;
 }
