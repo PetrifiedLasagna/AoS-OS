@@ -4,6 +4,7 @@ AoS-OS.exe : AoS-OS.obj voxlap5.obj v5.obj kplib.obj winmain.obj AoS-OS.cpp cnet
 
 AoS-OS.obj : AoS-OS.cpp voxlap5.h sysmain.h;
 	cl /c /J /TP AoS-OS.cpp /Ox /Ob2 /G6Fy /Gs /ML /QIfist
+voxlap5.obj: voxlap5.c voxlap5.h;     cl /c /J /TP voxlap5.c   /Ox /Ob2 /G6Fy /Gs /ML
 cnet.obj : cnet.cpp cnet.h sysmain.h;
     cl /c /J /TP cnet.cpp /Ox /Ob2 /G6Fy /Gs /ML /QIfist
 !if 0
@@ -56,7 +57,7 @@ int netframe(){
 long initapp (long argc, char **argv)
 {
 
-    xres = 800; yres = 600; colbits = 32; fullscreen = 0;
+    xres = 800; yres = 600; colbits = 32; fullscreen = 1;
     if(initvoxlap())return -1;
 
     readklock(&currt);lastt = currt;
@@ -64,6 +65,9 @@ long initapp (long argc, char **argv)
     vx5.fallcheck = 1;
 	vx5.mipscandist = 69;
 	vx5.maxscandist = 128;
+	loadsky("BLUE");
+	
+	
 
     vxlmap = (long*) malloc(VSID*VSID*sizeof(long));
     if(network.init())return -2;
@@ -72,7 +76,10 @@ long initapp (long argc, char **argv)
         memset(sptr, 0, sizeof(char)*VSID*VSID);
         strcpy(address, argv[1]);
         ipos.x = ipos.y = VSID>>2;ipos.z = -3;
-        dorthorotate(0, 0, 0, &istr, &ihei, &ifor);
+        double f = 90.0*PI/180.0;
+		istr.x = cos(f); istr.y = sin(f); istr.z = 0;
+		ihei.x = 0; ihei.y = 0; ihei.z = 1;
+		ifor.x = sin(f); ifor.y = -cos(f); ifor.z = 0;
         return 0;
     }
     MessageBox(ghwnd, "Supply me with an AoS address(server address, port, version)\nEx. aos://16777343:32887:0.75", "", MB_OK);
@@ -108,7 +115,8 @@ void doframe ()
             if(network.netstatus==StatusConnected){
                 updatevxl();
                 network.disconnect_host(0);
-                MessageBox(ghwnd, "it worked!", "", MB_OK);
+				ipos.x = ipos.y = VSID*.5;
+				ipos.z = getfloorz(ipos.x, ipos.y, 0)-2;
                 mode = 2;
                 return;
             }
@@ -136,10 +144,12 @@ void doframe ()
 
             setcamera(&ipos,&istr,&ihei,&ifor,xres*.5,yres*.5,xres*.5);
             opticast();
+			
+			dorthorotate(0,0,0.02,&istr,&ihei,&ifor);
 
             stopdirectdraw();
             nextpage();
-            readkeyboard(); if (keystatus[1]) quitloop();
+            readkeyboard(); if (keystatus[1]) quitloop(); if(keystatus[2])savevxl("aos-test.vxl");
             return;
         }
     }
