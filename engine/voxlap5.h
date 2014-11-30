@@ -170,6 +170,7 @@ extern long loaddta (const char *, dpoint3d *, dpoint3d *, dpoint3d *, dpoint3d 
 extern long loadpng (const char *, dpoint3d *, dpoint3d *, dpoint3d *, dpoint3d *);
 extern void loadbsp (const char *, dpoint3d *, dpoint3d *, dpoint3d *, dpoint3d *);
 extern long loadvxl (const char *, dpoint3d *, dpoint3d *, dpoint3d *, dpoint3d *);
+extern long loadmem (char *, long int);
 extern long savevxl (const char *);
 extern long loadsky (const char *);
 

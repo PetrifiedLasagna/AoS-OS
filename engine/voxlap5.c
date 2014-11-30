@@ -5030,6 +5030,39 @@ long loadvxl (const char *lodfilnam, dpoint3d *ipo, dpoint3d *ist, dpoint3d *ihe
 	return(1);
 }
 
+long loadmem (char *mapdata, long int datasize)
+{
+	long i;
+	char *v, *v2;
+
+	if (!vbuf) { vbuf = (long *)malloc((VOXSIZ>>2)<<2); if (!vbuf) evilquit("vbuf malloc failed"); }
+	if (!vbit) { vbit = (long *)malloc((VOXSIZ>>7)<<2); if (!vbit) evilquit("vbuf malloc failed"); }
+
+	v = (char *)(&vbuf[1]); //1st dword for voxalloc compare logic optimization
+	if(datasize<=0)evilquit("datasize is a dangerous value");
+	memcpy(v, mapdata, datasize);
+
+	for(i=0;i<VSID*VSID;i++)
+	{
+		sptr[i] = v;
+		while (v[0]) v += (((long)v[0])<<2);
+		v += ((((long)v[2])-((long)v[1])+2)<<2);
+	}
+
+	memset(&sptr[VSID*VSID],0,sizeof(sptr)-VSID*VSID*4);
+	vbiti = (((long)v-(long)vbuf)>>2); //# vbuf longs/vbit bits allocated
+	clearbuf((void *)vbit,vbiti>>5,-1);
+	clearbuf((void *)&vbit[vbiti>>5],(VOXSIZ>>7)-(vbiti>>5),0);
+	vbit[vbiti>>5] = (1<<vbiti)-1;
+
+	vx5.globalmass = calcglobalmass();
+	backedup = -1;
+
+	gmipnum = 1; vx5.flstnum = 0;
+	updatebbox(0,0,0,VSID,VSID,MAXZDIM,0);
+	return(1);
+}
+
 long savevxl (const char *savfilnam)
 {
 	FILE *fil;
