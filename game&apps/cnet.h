@@ -3,7 +3,7 @@
 
 #include <enet/enet.h>
 
-#define TIME_CHECK 1
+#define FPS_NET 10.0
 
 struct pckdata{
     int type;
@@ -12,7 +12,8 @@ struct pckdata{
 };
 
 enum{
-DtaPositionData,DtaOrientationData,DtaWorldUpdate,DtaInputData,DtaWeaponInput,DtaHitPacket,DtaGrenadePacket,DtaSetTool,DtaSetColor,DtaExistingPlayer,DtaShortPlayerData,DtaMoveObject,DtaCreatePlayer,DtaBlockAction,
+DtaPositionData,DtaOrientationData,DtaWorldUpdate,DtaInputData,DtaWeaponInput,DtaHitPacket,DtaGrenadePacket,
+DtaSetTool,DtaSetColor,DtaExistingPlayer,DtaShortPlayerData,DtaMoveObject,DtaCreatePlayer,DtaBlockAction,
 DtaBlockLine,DtaStateData,DtaKillAction,DtaChatMessage,DtaMapStart,DtaMapChunk,DtaPlayerLeft,DtaTerritoryCapture,
 DtaProgressBar,DtaIntelCapture,DtaIntelPickup,DtaIntelDrop,DtaRestock,DtaFogColor,DtaWeaponReload,DtaChangeTeam,DtaChangeWeapon
 };
